@@ -77,18 +77,22 @@
 
 #### Step 1. Data collection zone
 
-* Search **channel_id**, copy and **paste on the input box** and click the **Get data and stored** button in the **Data collection zone**.
+* Search **channel_id**, copy and **paste on the input box** and click the **collect and store data** button in the **Data collection zone**.
 
 #### Step 2. Data Migrate zone
 
-* Select the **channel name** and click the **Migrate to SQL** button to migrate the specific channel data to the postgresql database from MongoDB in the **Data Migrate zone**.
+* Select the **channel_id** and click the **Migrate to SQL** button to migrate the specific channel data to the postgreSQL database from MongoDB in the **Data Migrate zone**.
 
-#### Step 3. Channel Data Analysis zone
+#### Step 3. Select the table for view zone
+
+*select the **channels,videos,playlists,comments** click and get their information **Dataframe format**
+
+#### Step 4. Channel Data Analysis zone
 
 * **Select a Question** from the dropdown option you can get the **results in Dataframe format or bar chat format**.
 
 
 
-![Intro GUI]https://github.com/Mahendra8940/Mahendran-P
+[VISIT GITHUB LINK]https://github.com/Mahendra8940/Mahendran-P
 
 
