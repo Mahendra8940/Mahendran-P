@@ -1,3 +1,4 @@
+
 from googleapiclient.discovery import build
 import pymongo
 import psycopg2
@@ -146,7 +147,7 @@ def get_playlist_details(channel_id):
                         break
         return All_data
     
-    
+
 #upload to MongoDb compass table create
 
 client=pymongo.MongoClient("mongodb://localhost:27017")
@@ -165,10 +166,9 @@ def channel_details(channel_id):
     return "upload completed successfully"
 
 
-#Table creation  for channels in postgresql
+#Table creation  for channels
 
-def channels_table():
-    
+def channels_table(channel_name_s):
     mydb=psycopg2.connect(host="localhost",
                         user="postgres",
                         password="mahe8940",
@@ -176,60 +176,80 @@ def channels_table():
                         port="5432")
     cursor=mydb.cursor()
 
-    drop_query='''drop table if exists channels'''
-    cursor.execute(drop_query)
-    mydb.commit()
-
-
-    create_query='''create table if not exists channels(Channel_Name varchar(100),
+    try:
+        create_query='''create table if not exists channels(Channel_Name varchar(100),
                                                             Channel_Id varchar(80) primary key,
                                                             Subscribers bigint,
                                                             Views bigint,
                                                             Total_Videos int,
                                                             Channel_Description text,
                                                             Playlist_Id varchar(80))'''
+        cursor.execute(create_query)
+        mydb.commit()
 
-    cursor.execute(create_query)
+    except:
+        print("Channels table already created")
+
+    #fetching all datas
+    query_1= "SELECT * FROM channels"
+    cursor.execute(query_1)
+    table= cursor.fetchall()
     mydb.commit()
 
+    chann_list= []
+    chann_list2= []
+    df_all_channels= pd.DataFrame(table)
+
+    chann_list.append(df_all_channels[0])
+    for i in chann_list[0]:
+        chann_list2.append(i)
     
 
+    if channel_name_s in chann_list2:
+        news= f"Your Provided Channel {channel_name_s} is Already exists"        
+        return news
+    
+    else:
 
-    ch_list=[]
-    db=client["youtube_data"]
-    coll1=db["channel_details"]
-    for ch_data in coll1.find({},{"_id":0,"channel_information":1}):
-        ch_list.append(ch_data["channel_information"])
-    df=pd.DataFrame(ch_list)
+        single_channel_details= []
+        coll1=db["channel_details"]
+        for ch_data in coll1.find({"channel_information.Channel_Name":channel_name_s},{"_id":0}):
+            single_channel_details.append(ch_data["channel_information"])
+
+        df_single_channel= pd.DataFrame(single_channel_details)
 
 
-    for index,row in df.iterrows():
-        insert_query='''insert into channels(Channel_Name,
-                                            Channel_Id,
-                                            Subscribers,
-                                            Views, 
-                                            Total_Videos,
-                                            Channel_Description,
-                                            Playlist_Id )
-                                            
-                                            values(%s,%s,%s,%s,%s,%s,%s)'''
 
-        values=(row['Channel_Name'],  
-                row['Channel_Id'],
-                row['Subscribers'],
-                row['Views'],
-                row['Total_Videos'],     
-                row['Channel_Description'],
-                row['Playlist_Id'])
+        for index,row in df_single_channel.iterrows():
+            insert_query='''insert into channels(Channel_Name ,
+                                                Channel_Id,
+                                                Subscribers,
+                                                Views,
+                                                Total_Videos,
+                                                Channel_Description,
+                                                Playlist_Id)
+                                                
+                                                values(%s,%s,%s,%s,%s,%s,%s)'''
+            values=(row['Channel_Name'],
+                    row['Channel_Id'],
+                    row['Subscribers'],
+                    row['Views'],
+                    row['Total_Videos'],
+                    row['Channel_Description'],
+                    row['Playlist_Id'])
 
-        
-        cursor.execute(insert_query,values)
-        mydb.commit()
+            try:
+                cursor.execute(insert_query,values)
+                mydb.commit()
+
+            except:
+                print("Channel values are already inserted")
+
 
 
 #playlists
 
-def playlists_table():
+def playlist_table(channel_name_s):
     mydb=psycopg2.connect(host="localhost",
                         user="postgres",
                         password="mahe8940",
@@ -237,57 +257,51 @@ def playlists_table():
                         port="5432")
     cursor=mydb.cursor()
 
-
-    drop_query='''drop table if exists playlists'''
-    cursor.execute(drop_query)
-    mydb.commit()
-
-
     create_query='''create table if not exists playlists(Playlist_Id varchar(100) primary key,
-                                                         Tittle varchar(100),
-                                                         Channel_Id varchar(100),
-                                                         Channel_Name varchar(100),
-                                                         PublishedAt timestamp,
-                                                         Video_Count int
-                                                         )'''
-
+                                                        Title varchar(100),
+                                                        Channel_Id varchar(100),
+                                                        Channel_Name varchar(100),
+                                                        PublishedAt timestamp,
+                                                        Video_Count int
+                                                        )'''
 
     cursor.execute(create_query)
     mydb.commit()
 
-    pl_list=[]
-    db=client["youtube_data"]
+    single_channel_details= []
     coll1=db["channel_details"]
-    for pl_data in coll1.find({},{"_id":0,"playlist_information":1}):
-        for i in range(len(pl_data["playlist_information"])):
-            pl_list.append(pl_data["playlist_information"][i])
-    df1=pd.DataFrame(pl_list)
+    for ch_data in coll1.find({"channel_information.Channel_Name":channel_name_s},{"_id":0}):
+        single_channel_details.append(ch_data["playlist_information"])
 
-    for index,row in df1.iterrows():
+    df_single_channel= pd.DataFrame(single_channel_details[0])
+
+    for index,row in df_single_channel.iterrows():
         insert_query='''insert into playlists(Playlist_Id,
-                                              Tittle,
-                                              Channel_Id, 
-                                              Channel_Name,
-                                              PublishedAt,
-                                              Video_Count)
-                                                
-                                              values(%s,%s,%s,%s,%s,%s)'''
-
-        values=(row['Playlist_Id'],  
-                row['Tittle'],
+                                            Title,
+                                            Channel_Id,
+                                            Channel_Name,
+                                            PublishedAt,
+                                            Video_Count
+                                            )
+                                            
+                                            values(%s,%s,%s,%s,%s,%s)'''
+        
+        values=(row['Playlist_Id'],
+                row['Title'],
                 row['Channel_Id'],
                 row['Channel_Name'],
-                row['PublishedAt'],     
+                row['PublishedAt'],
                 row['Video_Count']
                 )
-            
+
+        
         cursor.execute(insert_query,values)
         mydb.commit()
         
         
 #videos
 
-def videos_table():
+def videos_table(channel_name_s):
     mydb=psycopg2.connect(host="localhost",
                         user="postgres",
                         password="mahe8940",
@@ -295,40 +309,37 @@ def videos_table():
                         port="5432")
     cursor=mydb.cursor()
 
-    drop_query='''drop table if exists videos'''
-    cursor.execute(drop_query)
-    mydb.commit()
-
-
     create_query='''create table if not exists videos(Channel_Name varchar(100),
-                                                        Channel_Id varchar(100),
-                                                        Video_Id varchar(30) primary key,
-                                                        Title varchar(150),
-                                                        Tags text,
-                                                        Thumbnail varchar(200),
-                                                        Description text,
-                                                        Published_Date timestamp,
-                                                        Duration interval,
-                                                        Views bigint,
-                                                        Likes bigint,
-                                                        Comments int,
-                                                        Favorite_Count int,
-                                                        Defination varchar(10),
-                                                        Caption_Status varchar(50))'''
+                                                    Channel_Id varchar(100),
+                                                    Video_Id varchar(30) primary key,
+                                                    Title varchar(150),
+                                                    Tags text,
+                                                    Thumbnail varchar(200),
+                                                    Description text,
+                                                    Published_Date timestamp,
+                                                    Duration interval,
+                                                    Views bigint,
+                                                    Likes bigint,
+                                                    Comments int,
+                                                    Favorite_Count int,
+                                                    Definition varchar(10),
+                                                    Caption_Status varchar(50)
+                                                        )'''
 
     cursor.execute(create_query)
     mydb.commit()
 
 
-    vi_list=[]
-    db=client["youtube_data"]
+    single_channel_details= []
     coll1=db["channel_details"]
-    for vi_data in coll1.find({},{"_id":0,"video_information":1}):
-        for i in range(len(vi_data["video_information"])):
-            vi_list.append(vi_data["video_information"][i])
-    df2=pd.DataFrame(vi_list)
+    for ch_data in coll1.find({"channel_information.Channel_Name":channel_name_s},{"_id":0}):
+        single_channel_details.append(ch_data["video_information"])
 
-    for index,row in df2.iterrows():
+    df_single_channel= pd.DataFrame(single_channel_details[0])
+
+
+
+    for index,row in df_single_channel.iterrows():
             insert_query='''insert into videos(Channel_Name,
                                                     Channel_Id,
                                                     Video_Id,
@@ -342,46 +353,44 @@ def videos_table():
                                                     Likes,
                                                     Comments,
                                                     Favorite_Count,
-                                                    Defination,
+                                                    Definition,
                                                     Caption_Status
-                                                    )
-                                                    values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'''
+                                                )
+                                                
+                                                values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'''
+        
 
             values=(row['Channel_Name'],
                     row['Channel_Id'],
                     row['Video_Id'],
                     row['Title'],
-                    row['Tags'],     
-                    row['Thumbnail'],                                
+                    row['Tags'],
+                    row['Thumbnail'],
                     row['Description'],
                     row['Published_Date'],
                     row['Duration'],
-                    row['Views'],     
-                    row['Likes'],                                 
-                    row['Comments'],                                
-                    row['Favorite_Count'],                                  
-                    row['Defination'],                                
+                    row['Views'],
+                    row['Likes'],
+                    row['Comments'],
+                    row['Favorite_Count'],
+                    row['Definition'],
                     row['Caption_Status']
-                    )                                     
-                                                    
-                
+                    )
+
+            
             cursor.execute(insert_query,values)
             mydb.commit()
-            
 
+            
 #comments
 
-def comments_table():
+def comments_table(channel_name_s):
     mydb=psycopg2.connect(host="localhost",
-                user="postgres",
-                password="mahe8940",
-                database="youtube_data",
-                port="5432")
+                        user="postgres",
+                        password="mahe8940",
+                        database="youtube_data",
+                        port="5432")
     cursor=mydb.cursor()
-
-    drop_query='''drop table if exists comments'''
-    cursor.execute(drop_query)
-    mydb.commit()
 
     create_query='''create table if not exists comments(Comment_Id varchar(100) primary key,
                                                         Video_Id varchar(50),
@@ -393,51 +402,50 @@ def comments_table():
     cursor.execute(create_query)
     mydb.commit()
 
-
-    com_list=[]
-    db=client["youtube_data"]
+    single_channel_details= []
     coll1=db["channel_details"]
-    for com_data in coll1.find({},{"_id":0,"comment_information":1}):
-        for i in range(len(com_data["comment_information"])):
-              com_list.append(com_data["comment_information"][i])
-    df3=pd.DataFrame(com_list)
+    for ch_data in coll1.find({"channel_information.Channel_Name":channel_name_s},{"_id":0}):
+        single_channel_details.append(ch_data["comment_information"])
 
+    df_single_channel= pd.DataFrame(single_channel_details[0])
 
-    
-
-    for index,row in df3.iterrows():
+    for index,row in df_single_channel.iterrows():
             insert_query='''insert into comments(Comment_Id,
-                                                Video_Id,
-                                                Comment_Text,
-                                                Comment_Author,
-                                                Comment_Published)
-                                        
-                                                values(%s,%s,%s,%s,%s)'''
+                                                    Video_Id,
+                                                    Comment_Text,
+                                                    Comment_Author,
+                                                    Comment_Published
+                                                )
                                                 
+                                                values(%s,%s,%s,%s,%s)'''
+            
+            
             values=(row['Comment_Id'],
                     row['Video_Id'],
                     row['Comment_Text'],
                     row['Comment_Author'],
-                    row['Comment_Published']    
-                    )                                     
-                           
+                    row['Comment_Published']
+                    )
+
             
             cursor.execute(insert_query,values)
             mydb.commit()
+
+
+
+def tables(channel_name):
+
+    news= channels_table(channel_name)
+    if news:
+        st.write(news)
+    else:
+        playlist_table(channel_name)
+        videos_table(channel_name)
+        comments_table(channel_name)
+
+    return "Tables Created Successfully"           
             
-            
-#all table create function in sql
 
-def tables():
-    channels_table()
-    playlists_table()
-    videos_table()
-    comments_table()
-
-    return "Table Created Successfully"
-
-
-#show dataframe
 
 def show_channels_table():
     ch_list=[]
@@ -449,7 +457,6 @@ def show_channels_table():
     
     return df
 
-
 def show_playlists_table():
     pl_list=[]
     db=client["youtube_data"]
@@ -460,7 +467,6 @@ def show_playlists_table():
     df1=st.dataframe(pl_list)
 
     return df1
-
 
 def show_videos_table():
     vi_list=[]
@@ -484,7 +490,6 @@ def show_comments_table():
 
     return df3
 
-
 #streamlit part
 
 with st.sidebar:
@@ -495,6 +500,12 @@ with st.sidebar:
     st.caption("MongoDB")
     st.caption("API Integration")
     st.caption("Data Management using MongoDB and SQL")
+    
+#st.set_page_config(layout="wide")    
+#st.title(":red[YOUTUBE DATA HAVERSTING AND WAREHOUSING]")
+
+st.header(":blue[Data Collection Zone]")
+st.write ('(Note:- This zone **collect data** by using channel id and **stored it in the :green[MongoDB] database**.)')
 
 channel_id=st.text_input("Enter the channel ID")
 
@@ -512,25 +523,24 @@ if st.button("collect and store data"):
         insert=channel_details(channel_id)
         st.success(insert)
         
+st.header(":blue[Data Migrate Zone]")
+
+st.write ('''(Note:- This zone specific channel data **Migrate to :blue[MySQL] database from  :green[MongoDB] database** depending on your selection,
+                if unavailable your option first collect data.)''')
+        
+all_channels= []
+coll1=db["channel_details"]
+for ch_data in coll1.find({},{"_id":0,"channel_information":1}):
+    all_channels.append(ch_data["channel_information"]["Channel_Name"])
+        
+unique_channel= st.selectbox("Select the Channel",all_channels)
+
 if st.button("Migrate to Sql"):
-    Table=tables()
+    Table=tables(unique_channel)
     st.success(Table)
 
-show_table=st.radio("SELECT THE TABLE FOR VIEW",("CHANNELS","PLAYLISTS","VIDEOS","COMMENTS"))
 
-if show_table=="CHANNELS":
-    show_channels_table()
-
-elif show_table=="PLAYLISTS":
-    show_playlists_table()
-
-elif show_table=="VIDEOS":
-    show_videos_table()
-
-elif show_table=="COMMENTS":
-    show_comments_table()
     
-
 #SQL Connection
 
 mydb=psycopg2.connect(host="localhost",
@@ -540,6 +550,9 @@ mydb=psycopg2.connect(host="localhost",
                         port="5432")
 cursor=mydb.cursor()
 
+st.header(":blue[Channels Data Analysis Zone]")
+st.write ('''(Note:- This zone **Analysis of a collection of channel data** depends on your question selection and gives a table format output.)''')
+    
 question=st.selectbox("Select your question",("1.all the videos and channel name",
                                               "2.channels with most number of videos",
                                               "3.10 most viewed videos",
@@ -571,7 +584,7 @@ elif question=="2.channels with most number of videos":
     
 elif question=="3.10 most viewed videos":
     query3='''select views as views,channel_name as channelname,title as videotitle from videos
-            where views is not null order by views desc limit 10'''
+                where views is not null order by views desc limit 10'''
     cursor.execute(query3)
     mydb.commit()
     t3=cursor.fetchall()
@@ -642,4 +655,15 @@ elif question=="10.videos have the highest number of comments":
     mydb.commit()
     t10=cursor.fetchall()
     df10=pd.DataFrame(t10,columns=["videotitle","channelname","comments"])
-    st.write(df10)
+    st.write(df10)    
+   
+
+
+    
+
+
+   
+
+                       
+
+
